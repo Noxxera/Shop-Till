@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShopTill — POS & Inventory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><span class="dot"></span> <span id="shopName">ShopTill</span></div>
+    <div class="hdr-right">
+      <div class="today">Today: <b id="todayTotal">KSh 0</b> · <span id="todayCount">0</span> sales</div>
+      <span class="role-badge" id="roleBadge">Owner</span>
+      <span class="role-badge" id="pendingTag" style="display:none;background:rgba(255,194,75,.15);color:var(--warn);border-color:transparent"></span>
+      <button class="icon-btn" id="switchBtn" onclick="lockNow()" style="display:none">Lock</button>
+    </div>
+  </header>
+
+  <div class="views">
+    <!-- SELL -->
+    <section class="view active" id="view-sell">
+      <div class="sell-wrap">
+        <div>
+          <h2>Tap items to sell</h2>
+          <input class="search" id="sellSearch" placeholder="Search name, category, or scan barcode + Enter…">
+          <div class="grid" id="sellGrid"></div>
+          <div class="empty" id="sellEmpty" style="display:none">No products yet. Add some in the Products tab.</div>
+        </div>
+        <div class="cart">
+          <h3>Current sale <span class="clr" onclick="clearCart()">clear</span></h3>
+          <div id="cartItems"></div>
+          <input class="mini" id="custInput" list="custList" placeholder="Customer (optional)">
+          <datalist id="custList"></datalist>
+          <div class="crow"><span>Subtotal</span><span class="num" id="cSub">KSh 0</span></div>
+          <div class="crow owner-only"><span>Discount (KSh)</span><input class="mini" id="cDisc" type="number" inputmode="decimal" value="0" style="width:90px;margin-top:0;text-align:right" oninput="renderCart()"></div>
+          <div class="crow" id="cVatRow"><span>VAT</span><span class="num" id="cVat">KSh 0</span></div>
+          <div class="cart-total"><span>Total</span><b id="cartTotal">KSh 0</b></div>
+          <button class="btn btn-primary" id="checkoutBtn" disabled>Complete sale</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUCTS -->
+    <section class="view" id="view-products">
+      <h2>Products</h2>
+      <button class="add-fab" onclick="openProductModal()">+ Add product</button>
+      <input class="search" id="prodSearch" placeholder="Search products…">
+      <div class="grid" id="prodGrid"></div>
+      <div class="empty" id="prodEmpty" style="display:none">No products yet. Tap “Add product” to begin.</div>
+    </section>
+
+    <!-- INVENTORY -->
+    <section class="view" id="view-inventory">
+      <h2>Inventory</h2>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Item</th><th id="invCostHead">Cost</th><th>Price</th><th>Stock</th><th>Status</th><th id="invActHead"></th></tr></thead>
+        <tbody id="invBody"></tbody>
+      </table></div>
+      <div class="empty" id="invEmpty" style="display:none">No products yet.</div>
+    </section>
+
+    <!-- SALES -->
+    <section class="view" id="view-sales">
+      <h2>Sales</h2>
+      <div id="salesLog"></div>
+      <div class="empty" id="salesEmpty" style="display:none">No sales recorded yet.</div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="view" id="view-reports">
+      <h2>Reports</h2>
+      <div class="toolbar">
+        <div class="seg" id="periodSeg">
+          <button class="active" data-p="today">Today</button>
+          <button data-p="week">7 days</button>
+          <button data-p="month">30 days</button>
+          <button data-p="all">All time</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="label">Revenue</div><div class="val green num" id="rRev">KSh 0</div></div>
+        <div class="stat"><div class="label">Profit</div><div class="val num" id="rProfit">KSh 0</div></div>
+        <div class="stat"><div class="label">Sales</div><div class="val num" id="rCount">0</div></div>
+        <div class="stat"><div class="label">Items sold</div><div class="val num" id="rItems">0</div></div>
+      </div>
+      <div class="report-block"><h4>Best sellers</h4><div id="bestSellers"></div></div>
+      <div class="report-block"><h4>Low / out of stock</h4><div id="lowReport"></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <h2>Settings</h2>
+      <div class="set-card">
+        <h4>Shop</h4>
+        <div class="field"><label>Shop name</label><input id="setShop" placeholder="My Electronics Shop"></div>
+        <div class="field two">
+          <div><label>Currency</label><input id="setCur" placeholder="KSh"></div>
+          <div><label>VAT %</label><input id="setVat" type="number" inputmode="decimal" placeholder="0"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
+      </div>
+      <div class="set-card">
+        <h4>Account & staff</h4>
+        <p>Accounts and roles are managed in Supabase. The owner sees everything; employees can sell and view stock only. To add another employee, create their login in the Supabase dashboard under Authentication → Users.</p>
+        <button class="btn btn-ghost" onclick="lockNow()">Sign out</button>
+      </div>
+      <div class="set-card">
+        <h4>Backup</h4>
+        <p>Export all your data to a file you can keep safe. Import to restore it on this or another device.</p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="exportData()">Export backup</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">Import backup</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+      </div>
+      <div class="set-card">
+        <h4>Export to Excel</h4>
+        <p>Download your products or sales as a spreadsheet (.csv) — opens directly in Excel or Google Sheets. Great for records, stock-taking, or your accountant.</p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="exportProductsCSV()">Products → Excel</button>
+          <button class="btn btn-ghost" onclick="exportSalesCSV()">Sales → Excel</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <nav>
+    <button class="active" data-view="sell" onclick="switchView('sell')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l2 13h11l2-9H6"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>Sell
+    </button>
+    <button class="owner-only" data-view="products" onclick="switchView('products')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Products
+    </button>
+    <button data-view="inventory" onclick="switchView('inventory')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>Stock
+    </button>
+    <button data-view="sales" onclick="switchView('sales')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5h6M9 5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2"/><path d="M9 11h6M9 15h4"/></svg>Sales
+    </button>
+    <button class="owner-only" data-view="reports" onclick="switchView('reports')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Reports
+    </button>
+    <button class="owner-only" data-view="settings" onclick="switchView('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 00-1.7-1L14.5 3h-4l-.4 2.6a7 7 0 00-1.7 1l-2.4-1-2 3.5 2 1.5a7 7 0 000 2l-2 1.5 2 3.5 2.4-1a7 7 0 001.7 1l.4 2.6h4l.4-2.6a7 7 0 001.7-1l2.4 1 2-3.5-2-1.5a7 7 0 00.1-1z"/></svg>Settings
+    </button>
+  </nav>
+</div>
+
+<!-- Product modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Add product</h3>
+    <div class="field"><label>Name</label><input id="mName" placeholder="e.g. 13A Wall Socket"></div>
+    <div class="field two">
+      <div><label>Category</label><input id="mCat" placeholder="Sockets"></div>
+      <div><label>Supplier</label><input id="mSup" placeholder="optional"></div>
+    </div>
+    <div class="field two">
+      <div><label>Cost price</label><input id="mCost" type="number" inputmode="decimal" placeholder="0"></div>
+      <div><label>Sell price</label><input id="mPrice" type="number" inputmode="decimal" placeholder="0"></div>
+    </div>
+    <div class="field two">
+      <div><label>Stock qty</label><input id="mStock" type="number" inputmode="numeric" placeholder="0"></div>
+      <div><label>Low alert at</label><input id="mLow" type="number" inputmode="numeric" placeholder="5"></div>
+    </div>
+    <div class="field"><label>Barcode</label><input id="mBarcode" placeholder="optional — scan or type"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="delBtn" onclick="deleteProduct(editingId)" style="display:none">Delete</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Login screen -->
+<div class="lock show" id="loginScreen">
+  <div class="logo"><span class="dot"></span> <span id="lockShop">ShopTill</span></div>
+  <div style="width:100%;max-width:300px">
+    <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="password" autocomplete="current-password"></div>
+    <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">Sign in</button>
+    <div class="lock-hint" id="loginMsg" style="text-align:center;margin-top:12px;min-height:18px"></div>
+  </div>
+</div>
+
+<div id="receipt"></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/pos.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
